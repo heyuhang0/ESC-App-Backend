@@ -20,11 +20,11 @@ def create_app(config):
     db.init_app(app)
     CORS(app)
 
-    from app import models
+    from app import models  # noqa
     Migrate(app, db)
 
     # Load blueprints
-    from .auth import bp as auth_bp
+    from app.auth import auth_bp
     app.register_blueprint(auth_bp)
 
     return app
