@@ -19,7 +19,7 @@ class User(db.Model):
     full_name = Column(String(128))
     is_admin = Column(Boolean, default=0)
 
-    project = relationship('Project', uselist=False, back_populates='user')
+    project = relationship('Project', uselist=False, back_populates='creator')
 
     def hash_password(self, password):
         self.password = custom_app_context.encrypt(password)
@@ -54,7 +54,7 @@ class Project(db.Model):
 
     space_x = Column(Float, comment='in meters')
     space_y = Column(Float, comment='in meters')
-    sapce_z = Column(Float, comment='in meters')
+    space_z = Column(Float, comment='in meters')
 
     creator_id = Column(Integer, ForeignKey('user.id'))
     creator = relationship('User', back_populates='project')
