@@ -1,14 +1,7 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth, MultiAuth
 from flask_cors import CORS
-
-
-db = SQLAlchemy()
-basic_auth = HTTPBasicAuth()
-token_auth = HTTPTokenAuth()
-auth = MultiAuth(basic_auth, token_auth)
+from app.models import db
 
 
 def create_app(config):
@@ -19,12 +12,10 @@ def create_app(config):
     # Load extensions
     db.init_app(app)
     CORS(app)
-
-    from app import models  # noqa
     Migrate(app, db)
 
     # Load blueprints
-    from app.auth import auth_bp
-    app.register_blueprint(auth_bp)
+    from app.resources.user import user_bp
+    app.register_blueprint(user_bp)
 
     return app

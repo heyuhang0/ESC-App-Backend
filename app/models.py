@@ -1,47 +1,47 @@
 import datetime
 
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import ForeignKey, Column
 from sqlalchemy import Integer, Float, String, Text, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
-from app import db
 from flask import current_app
 from passlib.apps import custom_app_context
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from itsdangerous import SignatureExpired, BadSignature
+
+db = SQLAlchemy()
 
 
 class User(db.Model):
     __talbename__ = 'user'
     id = Column(Integer, primary_key=True)
-    username = Column(String(128), index=True, unique=True, comment='email address')
-    password = Column(String(128))
-    full_name = Column(String(128))
-    is_admin = Column(Boolean, default=0)
+    email = Column(String(128), index=True, unique=True, nullable=False)
+    password_hash = Column(String(128), nullable=False)
+    full_name = Column(String(128), default='')
+    is_admin = Column(Boolean, default=False)
 
     project = relationship('Project', uselist=False, back_populates='creator')
 
-    def hash_password(self, password):
-        self.password = custom_app_context.encrypt(password)
+    @property
+    def password(self):
+        raise AttributeError('`password` is not a readable attribute')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = custom_app_context.encrypt(password)
 
     def verify_password(self, password):
-        return custom_app_context.verify(password, self.password)
+        return custom_app_context.verify(password, self.password_hash)
 
-    def generate_auth_token(self, expiration=3600):
+    @property
+    def token(self, expiration=3600):
         s = Serializer(current_app.config['SECRET_KEY'], expires_in=expiration)
-        return s.dumps({'id': self.id})
+        return str(s.dumps({'id': self.id}), encoding='utf-8')
 
     @staticmethod
-    def verify_auth_token(token):
+    def verify_token(token):
         s = Serializer(current_app.config['SECRET_KEY'])
-        try:
-            data = s.loads(token)
-        except SignatureExpired:
-            # valid token, but expired
-            return None
-        except BadSignature:
-            # invalid token
-            return None
+        data = s.loads(token)
         user = User.query.get(data['id'])
         return user
 
