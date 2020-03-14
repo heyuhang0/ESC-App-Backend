@@ -2,6 +2,7 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_cors import CORS
 from app.models import db
+from app.common.auth import UnauthorizedException
 
 
 def create_app(config):
@@ -13,6 +14,11 @@ def create_app(config):
     db.init_app(app)
     CORS(app)
     Migrate(app, db)
+
+    # Register exception handling
+    @app.errorhandler(UnauthorizedException)
+    def handle_unauthorized_request(e):
+        return 'Unauthorized Access', 401
 
     # Load blueprints
     from app.resources.user import user_bp

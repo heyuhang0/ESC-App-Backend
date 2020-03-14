@@ -11,6 +11,18 @@ auth = MultiAuth(basic_auth, token_auth)
 login_required = auth.login_required
 
 
+class UnauthorizedException(Exception):
+    pass
+
+
+def alert_unauthorized():
+    raise UnauthorizedException()
+
+
+basic_auth.error_handler(alert_unauthorized)
+token_auth.error_handler(alert_unauthorized)
+
+
 def current_user() -> User:
     return g.user
 
@@ -20,7 +32,7 @@ def admin_required(f):
     @login_required
     def decorated(*args, **kwargs):
         if not current_user().is_admin:
-            return token_auth.auth_error_callback()
+            alert_unauthorized()
         return f(*args, **kwargs)
     return decorated
 
