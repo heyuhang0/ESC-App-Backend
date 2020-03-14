@@ -66,9 +66,9 @@ class Project(db.Model):
     prototype_weight = Column(Float, default=0, comment='in kg')
 
     power_points_count = Column(Integer, default=0)
-    pedestall_big_count = Column(Integer, default=0)
-    pedestall_small_count = Column(Integer, default=0)
-    pedestall_description = Column(Text, default='')
+    pedestal_big_count = Column(Integer, default=0)
+    pedestal_small_count = Column(Integer, default=0)
+    pedestal_description = Column(Text, default='')
     monitor_count = Column(Integer, default=0)
     tv_count = Column(Integer, default=0)
     table_count = Column(Integer, default=0)
