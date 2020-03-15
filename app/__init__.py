@@ -2,6 +2,7 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_cors import CORS
 from app.models import db
+from app.common.exceptions import InvalidUsage
 
 
 def create_app(config):
@@ -14,8 +15,16 @@ def create_app(config):
     CORS(app)
     Migrate(app, db)
 
+    # Exception handling
+    @app.errorhandler(InvalidUsage)
+    def handle_invalid_usage(e: InvalidUsage):
+        return e.make_response()
+
     # Load blueprints
     from app.resources.user import user_bp
     app.register_blueprint(user_bp)
+
+    from app.resources.project import project_bp
+    app.register_blueprint(project_bp)
 
     return app
