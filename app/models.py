@@ -20,7 +20,7 @@ class User(db.Model):
     full_name = Column(String(128), default='')
     is_admin = Column(Boolean, default=False)
 
-    project = relationship('Project', uselist=False, back_populates='creator')
+    projects = relationship('Project', back_populates='creator')
 
     @property
     def password(self):
@@ -57,7 +57,7 @@ class Project(db.Model):
     space_z = Column(Float, comment='in meters')
 
     creator_id = Column(Integer, ForeignKey('user.id'))
-    creator = relationship('User', back_populates='project')
+    creator = relationship('User', back_populates='projects')
     updated_on = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     prototype_x = Column(Float, default=0, comment='in meters')
