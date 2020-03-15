@@ -24,4 +24,7 @@ def create_app(config):
     from app.resources.user import user_bp
     app.register_blueprint(user_bp)
 
+    from app.resources.project import project_bp
+    app.register_blueprint(project_bp)
+
     return app
