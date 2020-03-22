@@ -11,7 +11,8 @@ user_fields = {
     'id': fields.Integer,
     'email': fields.String,
     'full_name': fields.String,
-    'is_admin': fields.Boolean
+    'is_admin': fields.Boolean,
+    'token': fields.String
 }
 
 
@@ -68,12 +69,5 @@ class UserView(Resource):
         return user
 
 
-class UserTokenView(Resource):
-    @auth.login_required
-    def get(self):
-        return {'token': auth.current_user.token}
-
-
 api.add_resource(UserListView, '/users')
 api.add_resource(UserView, '/users/current')
-api.add_resource(UserTokenView, '/users/current/token')
