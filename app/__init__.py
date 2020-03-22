@@ -27,4 +27,10 @@ def create_app(config):
     from app.resources.project import project_bp
     app.register_blueprint(project_bp)
 
+    from app.resources.map import map_bp
+    app.register_blueprint(map_bp)
+
+    from app.resources.marker import marker_bp
+    app.register_blueprint(marker_bp)
+
     return app
