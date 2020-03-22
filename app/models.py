@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import ForeignKey, Column
@@ -90,7 +91,44 @@ class Marker(db.Model):
     map_id = Column(Integer, ForeignKey('map.id'))
     map = relationship('Map', back_populates='markers')
 
-    polygon = Column(Text, default='[]')
+    polygon_json = Column(Text, default='[]')
+
+    def _clean_contour(self, contours):
+        clean_contours = [{
+            'x': int(point['x']),
+            'y': int(point['y'])
+        } for point in contours]
+        return clean_contours
+
+    @property
+    def polygon(self):
+        return self._clean_contour(json.loads(self.polygon_json))
+
+    @polygon.setter
+    def polygon(self, contours):
+        self.polygon_json = json.dumps(self._clean_contour(contours))
+
+    @property
+    def centre(self):
+        coords = self.polygon
+        if len(coords) >= 3:
+            cx, cy, area = 0.0, 0.0, 0.0
+            for i in range(len(coords)):
+                x_i = coords[i]['x']
+                y_i = coords[i]['y']
+                x_ip1 = coords[(i+1) % len(coords)]['x']
+                y_ip1 = coords[(i+1) % len(coords)]['y']
+                cx += (x_i + x_ip1) * (x_i * y_ip1 - x_ip1 * y_i)
+                cy += (y_i + y_ip1) * (x_i * y_ip1 - x_ip1 * y_i)
+                area += 0.5 * (x_i * y_ip1 - x_ip1 * y_i)
+            cx /= 6 * area
+            cy /= 6 * area
+            return {
+                'x': int(cx),
+                'y': int(cy)
+            }
+        else:
+            return coords[0]
 
 
 class Map(db.Model):
