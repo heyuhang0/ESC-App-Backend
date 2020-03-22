@@ -87,4 +87,17 @@ class Marker(db.Model):
     project_id = Column(Integer, ForeignKey('project.id'))
     project = relationship('Project', back_populates='marker')
 
+    map_id = Column(Integer, ForeignKey('map.id'))
+    map = relationship('Map', back_populates='markers')
+
     polygon = Column(Text, default='[]')
+
+
+class Map(db.Model):
+    __tablename__ = 'map'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(128))
+    url = Column(String(256))
+    level = Column(Integer)
+    scale = Column(Float, comment="meter per pixel")
+    markers = relationship('Marker', back_populates='map')
