@@ -1,14 +1,8 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth, MultiAuth
 from flask_cors import CORS
-
-
-db = SQLAlchemy()
-basic_auth = HTTPBasicAuth()
-token_auth = HTTPTokenAuth()
-auth = MultiAuth(basic_auth, token_auth)
+from app.models import db
+from app.common.exceptions import InvalidUsage
 
 
 def create_app(config):
@@ -19,12 +13,24 @@ def create_app(config):
     # Load extensions
     db.init_app(app)
     CORS(app)
-
-    from app import models  # noqa
     Migrate(app, db)
 
+    # Exception handling
+    @app.errorhandler(InvalidUsage)
+    def handle_invalid_usage(e: InvalidUsage):
+        return e.make_response()
+
     # Load blueprints
-    from app.auth import auth_bp
-    app.register_blueprint(auth_bp)
+    from app.resources.user import user_bp
+    app.register_blueprint(user_bp)
+
+    from app.resources.project import project_bp
+    app.register_blueprint(project_bp)
+
+    from app.resources.map import map_bp
+    app.register_blueprint(map_bp)
+
+    from app.resources.marker import marker_bp
+    app.register_blueprint(marker_bp)
 
     return app

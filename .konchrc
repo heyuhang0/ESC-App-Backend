@@ -1,0 +1,31 @@
+import konch
+
+from flask_sqlalchemy.model import DefaultMeta
+
+from app import create_app
+from app import db
+import app.models as models
+import config
+
+curr_app = create_app(config.app_config['development'])
+model_instance_list = [models.__dict__.get(a) for a in dir(models) if isinstance(models.__dict__.get(a), DefaultMeta)]
+model_context_dict = {x.__name__: x for x in model_instance_list}
+
+context_dict = {
+    'app': curr_app,
+    'db': db
+}
+context_dict.update(model_context_dict)
+konch.config({
+    'context': context_dict,
+    'ipy_autoreload': True,
+    'shell': 'ipython'
+})
+
+ctx = curr_app.test_request_context()
+def setup():
+    ctx.push()
+
+
+def teardown():
+    ctx.pop()
