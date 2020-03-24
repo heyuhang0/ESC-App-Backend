@@ -59,6 +59,10 @@ class MarkerListView(Resource):
         args = parser.parse_args()
 
         marker = Marker(**args)
+
+        if args.get('project_id') == 0:
+            marker.project_id = None
+
         db.session.add(marker)
         db.session.commit()
 
@@ -93,6 +97,10 @@ class MarkerView(Resource):
         for k, v in args.items():
             if v is not None:
                 setattr(marker, k, v)
+
+        if args.get('project_id') == 0:
+            marker.project_id = None
+
         db.session.commit()
         return marker
 
