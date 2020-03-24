@@ -12,8 +12,10 @@ user_fields = {
     'email': fields.String,
     'full_name': fields.String,
     'is_admin': fields.Boolean,
-    'token': fields.String
 }
+
+user_fields_w_token = user_fields.copy()
+user_fields_w_token['token'] = fields.String
 
 
 class UserListView(Resource):
@@ -46,7 +48,7 @@ class UserListView(Resource):
 
 class UserView(Resource):
     @auth.login_required
-    @marshal_with(user_fields)
+    @marshal_with(user_fields_w_token)
     def get(self):
         return auth.current_user
 
