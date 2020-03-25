@@ -29,7 +29,7 @@ class User(db.Model):
 
     @password.setter
     def password(self, password):
-        self.password_hash = custom_app_context.encrypt(password)
+        self.password_hash = custom_app_context.hash(password)
 
     def verify_password(self, password):
         return custom_app_context.verify(password, self.password_hash)
