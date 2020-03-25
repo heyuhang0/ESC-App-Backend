@@ -13,6 +13,7 @@ model_context_dict = {x.__name__: x for x in model_instance_list}
 
 context_dict = {
     'app': curr_app,
+    'client': curr_app.test_client(),
     'db': db
 }
 context_dict.update(model_context_dict)
