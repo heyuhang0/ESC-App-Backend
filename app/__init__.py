@@ -7,8 +7,8 @@ from app.common.exceptions import InvalidUsage
 
 def create_app(config):
     app = Flask(__name__, instance_relative_config=True)
-    app.config.from_object(config)
     app.config.from_pyfile('config.py')
+    app.config.from_object(config)
 
     # Load extensions
     db.init_app(app)
