@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name='viewport' content='initial-scale=1.0, user-scalable=no'>
+    <meta charset='utf-8'>
+    <title>FloorPlan</title>
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+        #map {
+            height: 100%;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .project-selection-title {
+            font-size: 16px;
+            color: #555;
+            box-sizing: border-box;
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .marker-creation-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .project-selection-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 12px 2px;
+            cursor: pointer;
+        }
+        .project-selection-button-delete {background-color: #f44336;}
+        .project-selection-button-save {background-color: #4CAF50;}
+    </style>
+    <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.4.1.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+</head>
+
+<body>
+    <div id='map'></div>
+    <script>
+        // backend API and authorization
+        var backend_url = '';
+
+        function authorizate(request) {
+            request.setRequestHeader('Authorization', 'Bearer {{ token }}');
+        }
+
+        // helper functions for latitude/longitude <-> pixels conversion
+        var base_zoom = 15;
+        var pixel2degree_coefficient = 360.0 / 256 / (1 << base_zoom);
+
+        function xy2latlng(xy) {
+            return {
+                lat: -xy.y * pixel2degree_coefficient,
+                lng: xy.x * pixel2degree_coefficient
+            };
+        }
+
+        function latlng2xy(latlng) {
+            var pixel2degree_coefficient = 360.0 / 256 / (1 << base_zoom);
+            return {
+                x: parseInt(latlng.lng() / pixel2degree_coefficient),
+                y: -parseInt(latlng.lat() / pixel2degree_coefficient)
+            };
+        }
+
+        function createCustomMapType(map) {
+            var map_meta = $.ajax({
+                url: map.url + '/meta.json',
+                async: false
+            }).responseJSON;
+
+            var customMapType = new google.maps.ImageMapType({
+                getTileUrl: function (coord, zoom) {
+                    var zoom_store = base_zoom - zoom;
+                    var x = coord.x - (128 << zoom) / map_meta.tile_size;
+                    var y = coord.y - (128 << zoom) / map_meta.tile_size;
+
+                    if (x < 0 || x >= map_meta.zooms[zoom_store].x ||
+                        y < 0 || y >= map_meta.zooms[zoom_store].y) {
+                        return null
+                    }
+
+                    return map.url + '/' + zoom_store + '/' + x + '/' + y + '.png';
+                },
+                tileSize: new google.maps.Size(map_meta.tile_size, map_meta.tile_size),
+                maxZoom: base_zoom,
+                minZoom: base_zoom - map_meta.max_zoom,
+                name: map.name
+            });
+            return customMapType;
+        }
+
+        function initMap() {
+            // call API to get list of maps
+            var maps = $.ajax({
+                url: backend_url + '/maps',
+                async: false,
+                beforeSend: authorizate,
+            }).responseJSON;
+
+            var mapTypes = [];
+            var mapTypeIds = [];
+            var default_zoom = null;
+            var tile_size = null;
+            var center = null;
+
+            // create map types and tile providers
+            maps.forEach(map => {
+                mapTypes.push(createCustomMapType(map));
+                mapTypeIds.push(String(map.id));
+
+                // use the first map's data to config Google Map API
+                if (tile_size == null) {
+                    var map_meta = $.ajax({
+                        url: map.url + '/meta.json',
+                        async: false
+                    }).responseJSON;
+                    default_zoom = base_zoom - map_meta.max_zoom + 2;
+                    tile_size = map_meta.tile_size;
+                    center = xy2latlng({'x': map_meta.width / 2, 'y': map_meta.height / 2});
+                }
+            });
+
+            // create map instance
+            var map = new google.maps.Map(document.getElementById('map'), {
+                center: center,
+                zoom: default_zoom,
+                streetViewControl: false,
+                mapTypeControlOptions: {
+                    mapTypeIds: mapTypeIds
+                }
+            });
+
+            // bind custom map types to map ids
+            for (var i = 0; i < mapTypeIds.length; i++) {
+                map.mapTypes.set(mapTypeIds[i], mapTypes[i]);
+            }
+
+            // listener to load markers on map change
+            var polygons = []
+            map.addListener('maptypeid_changed', function() {
+                if (activatePolygon != null) {
+                    activatePolygon.save();
+                }
+                var map_id = map.getMapTypeId();
+                $.ajax({
+                    url: backend_url + '/maps/' + map_id + '/markers',
+                    beforeSend: authorizate
+                }).done(markers => {
+                    while(polygons.length > 0) {
+                        var polygon = polygons.pop();
+                        polygon.setMap(null);
+                        polygon.marker.setMap(null);
+                    }
+                    markers.forEach(marker => {
+                        var polygon = createPolygon(map, marker);
+                        polygon.marker.setVisible(default_zoom > 13);
+                        polygon.setMap(map);
+                        polygons.push(polygon);
+                    });
+                });
+            });
+
+            // show/hide markers on zoom
+            map.addListener('zoom_changed', function() {
+                var zoom = map.getZoom();
+                polygons.forEach(p => p.marker.setVisible(zoom > 13));
+            });
+
+            // save changes when click empty area
+            var infoWindow = new google.maps.InfoWindow();
+            infoWindow.setContent('<button class="marker-creation-button" id="marker_creation">New Marker</button>')
+            map.addListener('click', function(e) { 
+                if (activatePolygon != null) {
+                    activatePolygon.save();
+                }
+                infoWindow.setPosition(e.latLng);
+                infoWindow.open(map);
+                $(document).ready(function() {
+                    // make a copy so can remove all old listeners
+                    var button = document.getElementById('marker_creation');
+                    var button_copy = button.cloneNode(true);
+                    button.parentNode.replaceChild(button_copy, button);
+                    
+                    // craete a new marker when click
+                    button_copy.addEventListener('click', function buttonCallback(){
+                        var map_id = map.getMapTypeId();
+                        var form = new FormData();
+                        var centre = latlng2xy(e.latLng);
+                        var width = 100;
+                        var height = 100
+                        form.append('polygon_json', JSON.stringify([
+                            {x: centre.x - width/2, y: centre.y - height/2},
+                            {x: centre.x + width/2, y: centre.y - height/2},
+                            {x: centre.x + width/2, y: centre.y + height/2},
+                            {x: centre.x - width/2, y: centre.y + height/2}
+                        ]));
+                        form.append('map_id', map_id);
+
+                        $.ajax({
+                            url: backend_url + '/maps/' + map_id + '/markers',
+                            method: 'POST',
+                            processData: false,
+                            contentType: false,
+                            mimeType: 'multipart/form-data',
+                            beforeSend: authorizate,
+                            data: form,
+                            dataType: 'json',
+                        }).done(response => {
+                            var polygon = createPolygon(map, response);
+                            polygon.setMap(map);
+                            polygons.push(polygon);
+                            polygon.edit();
+                        });
+                        infoWindow.close();
+                    });
+                });  
+            });
+
+            // show the first map
+            map.setMapTypeId(mapTypeIds[0]);
+        }
+
+        var activatePolygon = null;
+        function createPolygon(map, markerResponse) {
+            // ================== create polygon ====================== //
+            var polygon = new google.maps.Polygon({
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 1,
+                fillColor: '#FF0000',
+                fillOpacity: 0.6,
+                draggable: false,
+                editable: false,
+                marker: new google.maps.Marker({
+                    icon: 'https://static.sutd-capstone.xyz/1x1.png',
+                    map: map
+                })
+            });
+            var marker_id;
+            var map_id;
+            polygon.meta = {};
+
+            // ================= attach listeners ===================== //
+            polygon.infoWindow = new google.maps.InfoWindow();
+
+            // when click
+            polygon.edit = function() {
+                if (activatePolygon != null) {
+                    activatePolygon.save();
+                }
+                activatePolygon = polygon;
+                
+                // show info window
+                polygon.infoWindow.setContent(
+                    '<label for="id_project_selection">' +
+                    '    <p class="project-selection-title">Assigned Project</p>' +
+                    '    <select class="project-selection" id="id_project_selection" style="width: 20em">' +
+                    '        <option></option>' +
+                    '    </select>' +
+                    '</label>' +
+                    '<br>' +
+                    '<button class="project-selection-button project-selection-button-save" onclick="activatePolygon.save()">Save</button>' +
+                    '<button class="project-selection-button project-selection-button-delete" onclick="activatePolygon.delete()">Delete</button>'
+                );
+                polygon.infoWindow.open(map);
+
+
+                $(document).ready(function() {
+                    $('.project-selection').select2({
+                        placeholder: 'Please choose a project',
+                        allowClear: true
+                    });
+                    $.ajax({
+                        url: backend_url + '/projects',
+                        beforeSend: authorizate
+                    }).done(function(projects) {
+                        projects.forEach(p => {
+                            var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
+                            $('.project-selection').append(option);
+                        });
+                        $('.project-selection').trigger('change');
+                    });
+                    
+                });
+                // make polygon editable
+                polygon.setDraggable(true);
+                polygon.setEditable(true);
+            }
+            polygon.addListener('click', polygon.edit);
+
+            // when edit shape
+            function updateInfoWindowPosition() {
+                var path = polygon.getPath().getArray();
+                var highest_position;
+                path.forEach(m => {
+                    if (highest_position == null || m.lat > highest_position.lat) {
+                        highest_position = m;
+                    }
+                });
+                polygon.infoWindow.setPosition(highest_position);
+            }
+
+            function updateMarkerPositon() {
+                var coords = polygon.getPath().getArray().map(latlng2xy);
+                var cx = 0.0;
+                var cy = 0.0;
+                var area = 0.0;
+                for (var i = 0; i < coords.length; i++) {
+                    var x_i = coords[i].x;
+                    var y_i = coords[i].y;
+                    var x_ip1 = coords[(i+1) % coords.length].x;
+                    var y_ip1 = coords[(i+1) % coords.length].y;
+                    cx += (x_i + x_ip1) * (x_i * y_ip1 - x_ip1 * y_i);
+                    cy += (y_i + y_ip1) * (x_i * y_ip1 - x_ip1 * y_i);
+                    area += 0.5 * (x_i * y_ip1 - x_ip1 * y_i);
+                }
+                polygon.marker.setPosition(xy2latlng({
+                    x: Math.floor(cx / (6 * area)),
+                    y: Math.floor(cy / (6 * area))
+                }));
+            }
+
+            function updatePositions() {
+                updateInfoWindowPosition();
+                updateMarkerPositon();
+            }
+
+            polygon.addListener('drag', updatePositions);
+            polygon.addListener('mouseup', updatePositions);
+
+            // =================== attach methods ===================== //
+            polygon.pull = function(response) {
+                polygon.setPath(response.polygon.map(xy2latlng));
+                polygon.marker.setPosition(xy2latlng(response.centre));
+                polygon.marker.setLabel(response.project.name);
+                var polygonColor = response.project.id ? '#446BFF': '#3EE31C';
+                polygon.setOptions({
+                    fillColor: polygonColor,
+                    strokeColor: polygonColor
+                })
+                marker_id = response.id;
+                map_id = response.map_id;
+                polygon.meta.marker_id = marker_id;
+                polygon.meta.map_id = map_id;
+                polygon.meta.project_id = response.project.id;
+                polygon.meta.project_name = response.project.name;
+            }
+
+            polygon.post = function() {
+                if (polygon.map != null) {
+                    var xy_coords = polygon.getPath().getArray().map(latlng2xy);
+
+                    var form = new FormData();
+                    form.append('polygon_json', JSON.stringify(xy_coords));
+                    form.append('project_id', polygon.meta.project_id);
+
+                    $.ajax({
+                        url: backend_url + '/maps/' + map_id + '/markers/' + marker_id,
+                        method: 'PUT',
+                        processData: false,
+                        contentType: false,
+                        mimeType: 'multipart/form-data',
+                        beforeSend: authorizate,
+                        data: form,
+                        dataType: 'json',
+                    }).done(response => {
+                        polygon.pull(response);
+                    });
+                }
+            };
+
+            polygon.save = function() {
+                var selected_project = $('.project-selection').val();
+                if (selected_project != undefined) {
+                    polygon.meta.project_id = selected_project || 0;
+                    polygon.meta.project_name = $('.project-selection').text();
+                }
+                polygon.setDraggable(false);
+                polygon.setEditable(false);
+                polygon.infoWindow.close();
+                polygon.post();
+                if (activatePolygon == polygon) {
+                    activatePolygon = null;
+                }
+            }
+
+            polygon.delete = function() {
+                $.ajax({
+                    method: 'DELETE',
+                    url: backend_url + '/maps/' + map_id + '/markers/' + marker_id,
+                    beforeSend: authorizate
+                }).done(function() {
+                    polygon.setMap(null);
+                    polygon.marker.setMap(null);
+                    polygon.infoWindow.close();
+                })
+            };
+
+            // ================= initialize polygon =================== //
+            polygon.pull(markerResponse);
+            updatePositions();
+
+            return polygon
+        }
+    </script>
+    <script async defer
+        src='https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap'>
+    </script>
+</body>
+
+</html>
