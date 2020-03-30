@@ -38,6 +38,7 @@ class MapView(Resource):
 def maps_page():
     return render_template(
         'map.html',
+        backend_url=current_app.config.get('BACKEND_URL', ''),
         api_key=current_app.config.get('GOOGLE_MAP_API_KEY'),
         token=auth.current_user.token
     )

@@ -62,7 +62,7 @@
     <div id='map'></div>
     <script>
         // backend API and authorization
-        var backend_url = '';
+        var backend_url = '{{ backend_url }}';
 
         function authorizate(request) {
             request.setRequestHeader('Authorization', 'Bearer {{ token }}');
