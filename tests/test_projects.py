@@ -7,6 +7,8 @@ from app.models import db, User, Project
 
 
 class TestProject(TestBase):
+    TEST_DATA = {}
+
     def setup_class(self):
         super().setup_class(self)
         self.student = User(
