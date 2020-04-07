@@ -26,6 +26,8 @@ class Auth(MultiAuth):
 
         @self.basic_auth.verify_password
         def verify_password(email: str, password: str) -> bool:
+            if not email:
+                return False
             user = User.query.filter_by(email=email).first()
             if not user or not user.verify_password(password):
                 return False
