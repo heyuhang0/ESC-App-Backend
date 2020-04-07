@@ -52,7 +52,20 @@ class ProjectListView(Resource):
     @marshal_with(project_fields)
     def get(self):
         if auth.current_user.is_admin:
-            return Project.query.all()
+            #create RequestParser to parse keyword
+            keywordParser = reqparse.RequestParser()
+            keywordParser.add_argument('keyword')
+            args = keywordParser.parse_args()
+            #if keyword is present
+            if args['keyword']:
+                #use sqlalchemy to do the search, return filtered result
+                
+                search = "%{}%".format(args['keyword'])
+                return Project.query.filter(Project.name.like(search)).all()
+            #if no keyword, return all
+            else:
+                return Project.query.all()
+            
         else:
             return auth.current_user.projects
 
