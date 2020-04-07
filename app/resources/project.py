@@ -1,8 +1,13 @@
-from flask import Blueprint, jsonify, request
+import os
+import csv
+import re
+import string
+from flask import Blueprint, jsonify, request, current_app
 from flask_restful import Api, fields, marshal_with, Resource, reqparse
 from app.common.auth import auth, ForbiddenException
 from app.common.exceptions import NotFoundException, InvalidUsage
 from app.models import db, Project
+from werkzeug.utils import secure_filename
 
 project_bp = Blueprint('project', __name__)
 api = Api(project_bp)
@@ -34,6 +39,14 @@ project_fields = {
 }
 
 
+def ascii_str(text, length_limit=-1):
+    text = str(text)
+    text = ''.join(filter(lambda c: c in set(string.printable), text))
+    if length_limit > 0:
+        text = text[:length_limit]
+    return text
+
+
 class ProjectListView(Resource):
     @auth.login_required
     @marshal_with(project_fields)
@@ -56,9 +69,93 @@ class ProjectListView(Resource):
         else:
             return auth.current_user.projects
 
+    def allowed_file(self, filename, allowed_extensions):
+        return '.' in filename and \
+            filename.rsplit('.', 1)[1] in allowed_extensions
+
+    def parse_csv_line(self, line):
+        if len(line) < 4:
+            raise InvalidUsage(
+                'At least 4 columns (name, type, type description, space requirement)\
+                 are required for CSV file'
+            )
+        result = {}
+        result['name'] = ascii_str(line[0], 127)
+        result['type'] = ascii_str(line[1] + ' ' + line[2], 127)
+        space_numbers = [float(s) for s in re.findall(r"\d+\.?\d*", line[3])]
+        use_cm = 'cm' in line[3]
+        if use_cm:
+            space_numbers = [n / 100 for n in space_numbers]
+        result['space_x'] = space_numbers[0] if len(space_numbers) > 0 else 2.0
+        result['space_y'] = space_numbers[1] if len(space_numbers) > 1 else 2.0
+        result['space_z'] = space_numbers[2] if len(space_numbers) > 2 else 2.0
+
+        # parse other optinal parameters
+        if len(line) > 4:
+            prototype_nums = [float(s) for s in re.findall(r"\d+\.?\d*", line[4])]
+            use_cm = 'cm' in line[4]
+            result['prototype_weight'] = prototype_nums[3] if len(prototype_nums) > 3 else 0
+            if use_cm:
+                prototype_nums = [n / 100 for n in prototype_nums]
+            result['prototype_x'] = prototype_nums[0] if len(prototype_nums) > 0 else 0
+            result['prototype_y'] = prototype_nums[1] if len(prototype_nums) > 1 else 0
+            result['prototype_z'] = prototype_nums[2] if len(prototype_nums) > 2 else 0
+
+            mapping = {
+                5: (int, 'power_points_count'),
+                6: (int, 'pedestal_big_count'),
+                7: (int, 'pedestal_small_count'),
+                8: (ascii_str, 'pedestal_description'),
+                9: (int, 'monitor_count'),
+                10: (int, 'tv_count'),
+                11: (int, 'table_count'),
+                12: (int, 'chair_count'),
+                13: (int, 'hdmi_to_vga_adapter_count'),
+                14: (int, 'hdmi_cable_count'),
+                16: (ascii_str, 'remark')
+            }
+            for i in range(5, len(line)):
+                if i in mapping:
+                    dtype = mapping[i][0]
+                    dkey = mapping[i][1]
+                    try:
+                        dvalue = dtype(line[i])
+                        result[dkey] = dvalue
+                    except Exception:
+                        pass
+        return result
+
     @auth.login_required
     @marshal_with(project_fields)
     def post(self):
+        # for CSV uploading
+        file = request.files.get('file')
+        if file and self.allowed_file(file.filename, 'csv'):
+            auth.admin_required(lambda: None)()
+
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            new_projects = []
+            with open(filepath, 'r') as csv_file:
+                reader = csv.reader(csv_file)
+                for line in reader:
+                    data_dict = self.parse_csv_line(line)
+                    data_dict['creator'] = auth.current_user
+                    new_project = Project(**data_dict)
+                    new_projects.append(new_project)
+                    db.session.add(new_project)
+
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                raise e
+
+            return new_projects
+
+        # for normal uploading
         parser = reqparse.RequestParser()
         parser.add_argument('name', type=str, required=True)
         parser.add_argument('type', type=str, required=True)
