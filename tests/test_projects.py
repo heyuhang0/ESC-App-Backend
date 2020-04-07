@@ -33,11 +33,36 @@ class TestProject(TestBase):
         assert rv.status_code == 200
         assert 'id' in rv.json
         self.TEST_DATA['id'] = rv.json['id']
+<<<<<<< Updated upstream
+=======
         assert rv.json['name'] == 'NHB_Spatial Autonomy'
         assert rv.json['type'] == '1:01 light installation'
         assert rv.json['space_x'] == 20
         assert rv.json['space_y'] == 10
         assert rv.json['space_z'] == 2.5
+
+            
+    def test_put(self):
+        pass
+
+    def test_get(self):
+        rv = self.client.get('/projects/current')
+        assert 'id' in rv.json
+    
+    def test_search(self):
+        rv = self.client.get('/projects?keyword=NHB_Spatial Autonomy')
+>>>>>>> Stashed changes
+        assert rv.json['name'] == 'NHB_Spatial Autonomy'
+        assert rv.json['type'] == '1:01 light installation'
+        assert rv.json['space_x'] == 20
+        assert rv.json['space_y'] == 10
+        assert rv.json['space_z'] == 2.5
+    
+    def test_delete(self):
+        rv = self.client.get('/projects/current')
+        #assert rv.status_code == 200
+        self.client.delete('/projects/{}'.format(self.TEST_DATA['id']), self.TEST_DATA['id'] , headers={'Authorization': 'Bearer ' + self.student.token})
+        assert 'Project {rv_id} deleted' in rv.json
 
             
     def test_put(self):
@@ -64,4 +89,5 @@ class TestProject(TestBase):
         assert rv.status_code == 400
         assert 'Only one submission allowed' in rv.json['message']
 
+    
 

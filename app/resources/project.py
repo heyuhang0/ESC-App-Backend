@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_restful import Api, fields, marshal_with, Resource, reqparse
 from app.common.auth import auth, ForbiddenException
 from app.common.exceptions import NotFoundException, InvalidUsage
@@ -39,7 +39,20 @@ class ProjectListView(Resource):
     @marshal_with(project_fields)
     def get(self):
         if auth.current_user.is_admin:
-            return Project.query.all()
+            #create RequestParser to parse keyword
+            keywordParser = reqparse.RequestParser()
+            keywordParser.add_argument('keyword')
+            args = keywordParser.parse_args()
+            #if keyword is present
+            if args['keyword']:
+                #use sqlalchemy to do the search, return filtered result
+                
+                search = "%{}%".format(args['keyword'])
+                return Project.query.filter(Project.name.like(search)).all()
+            #if no keyword, return all
+            else:
+                return Project.query.all()
+            
         else:
             return auth.current_user.projects
 
