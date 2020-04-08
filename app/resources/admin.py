@@ -10,8 +10,11 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 @auth.admin_required
 def run_allocation():
     reset_allocation()
-    allocate()
-    return jsonify({'message': 'Completetd successfully'})
+    skipped = allocate()
+    return jsonify({
+        'message': 'Completetd successfully',
+        'skipped': len(skipped)
+    })
 
 
 @admin_bp.route('/send_notifications', methods=['POST'])

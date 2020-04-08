@@ -148,9 +148,11 @@ def allocate():
         BoothCluster(maps[1], (1870, 2400), (2200, 2690), 40),
         BoothCluster(maps[1], (2940, 2670), (3460, 2200), 40),
     ])
+    skipped = []
     for project in Project.query.all():
         allocated_map, allocated_polygon = allocator.allocate(project)
         if not allocated_map:
+            skipped.append(project)
             continue
         db.session.add(Marker(
             project=project,
@@ -158,3 +160,4 @@ def allocate():
             polygon=allocated_polygon
         ))
     db.session.commit()
+    return skipped
