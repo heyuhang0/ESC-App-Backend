@@ -90,7 +90,7 @@ class ProjectListView(Resource):
             for attr, value in args.items():
                 if args[attr]:
                     isEmpty = False
-                q = q.filter(getattr(Project, attr).like("%%%s%%" % value))
+                    q = q.filter(getattr(Project, attr).like("%%%s%%" % value))
             if isEmpty:
                 return Project.query.all()
             else:
