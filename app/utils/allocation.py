@@ -28,6 +28,8 @@ class Rectangle:
 
 class BoothCluster:
     BASIC_UNIT = 2
+    MAX_UNIT_X = 3
+    MAX_UNIT_Y = 2
 
     def __init__(self, map, start_point, end_point, initial_score, rows=1):
         self.map = map
@@ -64,6 +66,10 @@ class BoothCluster:
         # a booth should have at least one side facing out
         if x != 0 and x+x_size != self.columns and y != 0 and y+y_size != self.rows:
             return 0
+        if x_size > y_size and y != 0 and y+y_size != self.rows:
+            return 0
+        if y_size > x_size and x != 0 and x+x_size != self.columns:
+            return 0
         occupancy_x = abs(x + x_size/2 - self.columns/2) / (self.columns/2)
         return (1 - 0.3 * occupancy_x) * self.initial_score
 
@@ -88,8 +94,8 @@ class BoothCluster:
         return best_unit, best_unit_score
 
     def get_units_required(self, project: Project):
-        x_size = math.ceil(project.space_x / self.BASIC_UNIT)
-        y_size = math.ceil(project.space_y / self.BASIC_UNIT)
+        x_size = min(math.ceil((project.space_x - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_X)
+        y_size = min(math.ceil((project.space_y - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_Y)
         return x_size, y_size
 
     def allocate(self, project: Project) -> Rectangle:
@@ -131,16 +137,16 @@ def allocate():
     allocator = Allocator([
         BoothCluster(maps[0], (2400, 2150), (3100, 2150), 100, 3),
         BoothCluster(maps[0], (2400, 1800), (3000, 1800), 100, 3),
-        BoothCluster(maps[0], (3150, 1600), (3150, 2000), 80),
+        BoothCluster(maps[0], (3150, 1600), (3150, 2000), 80, 2),
         BoothCluster(maps[0], (2300, 1700), (2300, 2000), 80),
         BoothCluster(maps[0], (1980, 2100), (2420, 2500), 80, 2),
         BoothCluster(maps[0], (3160, 2470), (3600, 2040), 80, 2),
-        BoothCluster(maps[0], (3470, 1780), (3650, 1780), 70),
-        BoothCluster(maps[0], (1845, 1800), (1980, 1800), 70),
+        BoothCluster(maps[0], (3470, 1780), (3650, 1780), 70, 2),
+        BoothCluster(maps[0], (1845, 1800), (1980, 1800), 70, 2),
         BoothCluster(maps[0], (3260, 1560), (3465, 1450), 40),
         BoothCluster(maps[0], (1700, 1600), (1700, 1950), 50),
-        BoothCluster(maps[0], (1830, 1530), (2150, 1530), 50),
-        BoothCluster(maps[0], (2620, 2550), (2900, 2550), 50),
+        BoothCluster(maps[0], (1830, 1530), (2150, 1530), 50, 2),
+        BoothCluster(maps[0], (2620, 2550), (2900, 2550), 50, 2),
         BoothCluster(maps[1], (1800, 1000), (3250, 1000), 60),
         BoothCluster(maps[1], (1180, 1760), (2230, 2300), 50),
         BoothCluster(maps[1], (2320, 2330), (2770, 2330), 50),
