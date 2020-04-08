@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, render_template, current_app
 from flask_restful import Api, fields, marshal_with, Resource
 from app.common.auth import auth
 from app.common.exceptions import NotFoundException
@@ -31,6 +31,18 @@ class MapView(Resource):
         if not m:
             raise NotFoundException(Map)
         return m
+
+
+@map_bp.route('/maps/page')
+@auth.login_required
+def maps_page():
+    return render_template(
+        'map.html',
+        backend_url=current_app.config.get('BACKEND_URL', ''),
+        api_key=current_app.config.get('GOOGLE_MAP_API_KEY'),
+        token=auth.current_user.token,
+        is_admin=str(auth.current_user.is_admin)
+    )
 
 
 api.add_resource(MapListView, '/maps')
