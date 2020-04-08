@@ -1,3 +1,4 @@
+from flask import Blueprint, jsonify, request
 import os
 import csv
 import re
@@ -38,15 +39,12 @@ project_fields = {
     'remark': fields.String
 }
 
-
 def ascii_str(text, length_limit=-1):
     text = str(text)
     text = ''.join(filter(lambda c: c in set(string.printable), text))
     if length_limit > 0:
         text = text[:length_limit]
     return text
-
-
 class ProjectListView(Resource):
     @auth.login_required
     @marshal_with(project_fields)
@@ -54,21 +52,51 @@ class ProjectListView(Resource):
         if auth.current_user.is_admin:
             #create RequestParser to parse keyword
             keywordParser = reqparse.RequestParser()
-            keywordParser.add_argument('keyword')
+            keywordParser.add_argument('id')
+            keywordParser.add_argument('name')
+            keywordParser.add_argument('type')
+            keywordParser.add_argument('space_x')
+            keywordParser.add_argument('space_y')
+            keywordParser.add_argument('space_z')
+            keywordParser.add_argument('creator_id')
+            keywordParser.add_argument('updated_on')
+            keywordParser.add_argument('prototype_x')
+            keywordParser.add_argument('prototype_y')
+            keywordParser.add_argument('prototype_z')
+            keywordParser.add_argument('prototype_weight')
+            keywordParser.add_argument('power_points_count')
+            keywordParser.add_argument('pedestal_big_count')
+            keywordParser.add_argument('pedestal_small_count')
+            keywordParser.add_argument('pedestal_description')
+            keywordParser.add_argument('monitor_count')
+            keywordParser.add_argument('tv_count')
+            keywordParser.add_argument('table_count')
+            keywordParser.add_argument('chair_count')
+            keywordParser.add_argument('hdmi_to_vga_adapter_count')
+            keywordParser.add_argument('hdmi_cable_count')
+            keywordParser.add_argument('remark')
+            
             args = keywordParser.parse_args()
-            #if keyword is present
-            if args['keyword']:
+            '''#if keyword is present
+            if args['name']:
                 #use sqlalchemy to do the search, return filtered result
-                
-                search = "%{}%".format(args['keyword'])
+                search = "%{}%".format(args['name'])
                 return Project.query.filter(Project.name.like(search)).all()
-            #if no keyword, return all
-            else:
+            #if no keyword, return all'''
+            isEmpty = True
+            q = db.session.query(Project)
+            for attr, value in args:
+                if args[attr]:
+                    isEmpty = False
+                q = q.filter(getattr(Project, attr).like("%%%s%%" % value))
+                
+            if isEmpty:
                 return Project.query.all()
+            else:
+                return db
             
         else:
             return auth.current_user.projects
-
     def allowed_file(self, filename, allowed_extensions):
         return '.' in filename and \
             filename.rsplit('.', 1)[1] in allowed_extensions
@@ -123,8 +151,8 @@ class ProjectListView(Resource):
                         result[dkey] = dvalue
                     except Exception:
                         pass
-        return result
-
+        return result    
+        
     @auth.login_required
     @marshal_with(project_fields)
     def post(self):
