@@ -138,14 +138,49 @@ class TestProject(TestBase):
             assert rv.json[i]['space_x'] == 5
             assert rv.json[i]['space_y'] == 4
 
-    def test_search_list(self):
+    def test_filter_by_name(self):
         rv = self.client.get(
-            '/projects?keyword=Project 2',
+            '/projects',
+            data={'name': 'Project 3'},
+            headers={'Authorization': 'Bearer ' + self.admin.token}
+        )
+        assert rv.status_code == 200
+        assert len(rv.json) == 1
+        assert rv.json[0]['name'] == 'Project 3'
+
+    def test_filter_by_remark(self):
+        rv = self.client.get(
+            '/projects',
+            data={'remark': 'Remark4'},
+            headers={'Authorization': 'Bearer ' + self.admin.token}
+        )
+        assert rv.status_code == 200
+        assert len(rv.json) == 1
+        assert rv.json[0]['name'] == 'Project 4'
+
+    def test_filter_by_space(self):
+        rv = self.client.get(
+            '/projects',
+            data={'space_z': '3'},
             headers={'Authorization': 'Bearer ' + self.admin.token}
         )
         assert rv.status_code == 200
         assert len(rv.json) == 1
         assert rv.json[0]['name'] == 'Project 2'
+
+    def test_filter_by_mutiple(self):
+        rv = self.client.get(
+            '/projects',
+            data={
+                'name': 'Project',
+                'type': 'ro',
+                'prototype_x': '0.2'
+            },
+            headers={'Authorization': 'Bearer ' + self.admin.token}
+        )
+        assert rv.status_code == 200
+        assert len(rv.json) == 1
+        assert rv.json[0]['name'] == 'Project 5'
 
     def test_allocation(self):
         rv = self.client.post(
