@@ -63,6 +63,9 @@
     <script>
         // backend API and authorization
         var backend_url = '{{ backend_url }}';
+        var is_admin = '{{ is_admin }}' == 'True';
+
+        var ajaxCache = {};
 
         function authorizate(request) {
             request.setRequestHeader('Authorization', 'Bearer {{ token }}');
@@ -192,57 +195,67 @@
             });
 
             // save changes when click empty area
-            var infoWindow = new google.maps.InfoWindow();
-            infoWindow.setContent('<button class="marker-creation-button" id="marker_creation">New Marker</button>')
-            map.addListener('click', function(e) { 
-                if (activatePolygon != null) {
-                    activatePolygon.save();
-                }
-                infoWindow.setPosition(e.latLng);
-                infoWindow.open(map);
-                $(document).ready(function() {
-                    // make a copy so can remove all old listeners
-                    var button = document.getElementById('marker_creation');
-                    var button_copy = button.cloneNode(true);
-                    button.parentNode.replaceChild(button_copy, button);
-                    
-                    // craete a new marker when click
-                    button_copy.addEventListener('click', function buttonCallback(){
-                        var map_id = map.getMapTypeId();
-                        var form = new FormData();
-                        var centre = latlng2xy(e.latLng);
-                        var width = 100;
-                        var height = 100
-                        form.append('polygon_json', JSON.stringify([
-                            {x: centre.x - width/2, y: centre.y - height/2},
-                            {x: centre.x + width/2, y: centre.y - height/2},
-                            {x: centre.x + width/2, y: centre.y + height/2},
-                            {x: centre.x - width/2, y: centre.y + height/2}
-                        ]));
-                        form.append('map_id', map_id);
+            if (is_admin) {
+                var infoWindow = new google.maps.InfoWindow();
+                infoWindow.setContent('<button class="marker-creation-button" id="marker_creation">New Marker</button>')
+                map.addListener('click', function(e) { 
+                    if (activatePolygon != null) {
+                        activatePolygon.save();
+                    }
+                    infoWindow.setPosition(e.latLng);
+                    infoWindow.open(map);
+                    $(document).ready(function() {
+                        // make a copy so can remove all old listeners
+                        var button = document.getElementById('marker_creation');
+                        var button_copy = button.cloneNode(true);
+                        button.parentNode.replaceChild(button_copy, button);
+                        
+                        // craete a new marker when click
+                        button_copy.addEventListener('click', function buttonCallback(){
+                            var map_id = map.getMapTypeId();
+                            var form = new FormData();
+                            var centre = latlng2xy(e.latLng);
+                            var width = 100;
+                            var height = 100
+                            form.append('polygon_json', JSON.stringify([
+                                {x: centre.x - width/2, y: centre.y - height/2},
+                                {x: centre.x + width/2, y: centre.y - height/2},
+                                {x: centre.x + width/2, y: centre.y + height/2},
+                                {x: centre.x - width/2, y: centre.y + height/2}
+                            ]));
+                            form.append('map_id', map_id);
 
-                        $.ajax({
-                            url: backend_url + '/maps/' + map_id + '/markers',
-                            method: 'POST',
-                            processData: false,
-                            contentType: false,
-                            mimeType: 'multipart/form-data',
-                            beforeSend: authorizate,
-                            data: form,
-                            dataType: 'json',
-                        }).done(response => {
-                            var polygon = createPolygon(map, response);
-                            polygon.setMap(map);
-                            polygons.push(polygon);
-                            polygon.edit();
+                            $.ajax({
+                                url: backend_url + '/maps/' + map_id + '/markers',
+                                method: 'POST',
+                                processData: false,
+                                contentType: false,
+                                mimeType: 'multipart/form-data',
+                                beforeSend: authorizate,
+                                data: form,
+                                dataType: 'json',
+                            }).done(response => {
+                                var polygon = createPolygon(map, response);
+                                polygon.setMap(map);
+                                polygons.push(polygon);
+                                polygon.edit();
+                            });
+                            infoWindow.close();
                         });
-                        infoWindow.close();
-                    });
-                });  
-            });
+                    });  
+                });
+            }
 
             // show the first map
             map.setMapTypeId(mapTypeIds[0]);
+
+            // load caches
+            $.ajax({
+                url: backend_url + '/projects',
+                beforeSend: authorizate
+            }).done(function(projects) {
+                ajaxCache.projects = projects;
+            });
         }
 
         var activatePolygon = null;
@@ -295,15 +308,25 @@
                         placeholder: 'Please choose a project',
                         allowClear: true
                     });
-                    $.ajax({
-                        url: backend_url + '/projects',
-                        beforeSend: authorizate
-                    }).done(function(projects) {
-                        projects.forEach(p => {
+                    if ('projects' in ajaxCache) {
+                        ajaxCache.projects.forEach(p => {
                             var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
                             $('.project-selection').append(option);
                         });
                         $('.project-selection').trigger('change');
+                    }
+                    $.ajax({
+                        url: backend_url + '/projects',
+                        beforeSend: authorizate
+                    }).done(function(projects) {
+                        if (!('projects' in ajaxCache)) {
+                            projects.forEach(p => {
+                                var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
+                                $('.project-selection').append(option);
+                            });
+                            $('.project-selection').trigger('change');
+                        }
+                        ajaxCache.projects = projects;
                     });
                     
                 });
@@ -311,7 +334,9 @@
                 polygon.setDraggable(true);
                 polygon.setEditable(true);
             }
-            polygon.addListener('click', polygon.edit);
+            if (is_admin) {
+                polygon.addListener('click', polygon.edit);
+            }
 
             // when edit shape
             function updateInfoWindowPosition() {
