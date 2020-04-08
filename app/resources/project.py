@@ -50,7 +50,7 @@ class ProjectListView(Resource):
     @marshal_with(project_fields)
     def get(self):
         if auth.current_user.is_admin:
-            #create RequestParser to parse keyword
+            # create RequestParser to parse keyword
             keywordParser = reqparse.RequestParser()
             keywordParser.add_argument('id')
             keywordParser.add_argument('name')

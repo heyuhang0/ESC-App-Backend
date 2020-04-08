@@ -33,4 +33,7 @@ def create_app(config):
     from app.resources.marker import marker_bp
     app.register_blueprint(marker_bp)
 
+    from app.resources.admin import admin_bp
+    app.register_blueprint(admin_bp)
+
     return app
