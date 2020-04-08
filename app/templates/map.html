@@ -65,6 +65,8 @@
         var backend_url = '{{ backend_url }}';
         var is_admin = '{{ is_admin }}' == 'True';
 
+        var ajaxCache = {};
+
         function authorizate(request) {
             request.setRequestHeader('Authorization', 'Bearer {{ token }}');
         }
@@ -246,6 +248,14 @@
 
             // show the first map
             map.setMapTypeId(mapTypeIds[0]);
+
+            // load caches
+            $.ajax({
+                url: backend_url + '/projects',
+                beforeSend: authorizate
+            }).done(function(projects) {
+                ajaxCache.projects = projects;
+            });
         }
 
         var activatePolygon = null;
@@ -298,15 +308,25 @@
                         placeholder: 'Please choose a project',
                         allowClear: true
                     });
-                    $.ajax({
-                        url: backend_url + '/projects',
-                        beforeSend: authorizate
-                    }).done(function(projects) {
-                        projects.forEach(p => {
+                    if ('projects' in ajaxCache) {
+                        ajaxCache.projects.forEach(p => {
                             var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
                             $('.project-selection').append(option);
                         });
                         $('.project-selection').trigger('change');
+                    }
+                    $.ajax({
+                        url: backend_url + '/projects',
+                        beforeSend: authorizate
+                    }).done(function(projects) {
+                        if (!('projects' in ajaxCache)) {
+                            projects.forEach(p => {
+                                var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
+                                $('.project-selection').append(option);
+                            });
+                            $('.project-selection').trigger('change');
+                        }
+                        ajaxCache.projects = projects;
                     });
                     
                 });
