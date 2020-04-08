@@ -94,8 +94,8 @@ class BoothCluster:
         return best_unit, best_unit_score
 
     def get_units_required(self, project: Project):
-        x_size = min(math.ceil((project.space_x - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_X)
-        y_size = min(math.ceil((project.space_y - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_Y)
+        x_size = max(min(math.ceil((project.space_x - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_X), 1)
+        y_size = max(min(math.ceil((project.space_y - 0.5) / self.BASIC_UNIT), self.MAX_UNIT_Y), 1)
         return x_size, y_size
 
     def allocate(self, project: Project) -> Rectangle:
