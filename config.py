@@ -1,6 +1,10 @@
+import tempfile
+
+
 class Config():
     """ Common Config """
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    UPLOAD_FOLDER = tempfile.gettempdir()
 
 
 class DevelopmentConfig(Config):
