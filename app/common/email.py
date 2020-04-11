@@ -1,9 +1,12 @@
-from flask_mail importMail, Message
+from flask import Flask
+from flask_mail import Mail, Message
 
-class Email(public):
-    def send_email(receivers, title, content, header):
-        msg = Message(header, receivers)
-        msg.body = content
-        mail.send(msg)
+class Email():
+    def send_email(self, receivers, title, content, header):
+        mail = Mail()
+        with mail.connect() as conn:
+            for receiver in receivers:
+                msg = Message(receiver, content, title)
+                conn.send(msg)
         print("Mail sent")
     
