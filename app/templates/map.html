@@ -67,7 +67,7 @@
 
         var ajaxCache = {};
 
-        function authorizate(request) {
+        function authorize(request) {
             request.setRequestHeader('Authorization', 'Bearer {{ token }}');
         }
 
@@ -122,7 +122,7 @@
             var maps = $.ajax({
                 url: backend_url + '/maps',
                 async: false,
-                beforeSend: authorizate,
+                beforeSend: authorize,
             }).responseJSON;
 
             var mapTypes = [];
@@ -172,7 +172,7 @@
                 var map_id = map.getMapTypeId();
                 $.ajax({
                     url: backend_url + '/maps/' + map_id + '/markers',
-                    beforeSend: authorizate
+                    beforeSend: authorize
                 }).done(markers => {
                     while(polygons.length > 0) {
                         var polygon = polygons.pop();
@@ -231,7 +231,7 @@
                                 processData: false,
                                 contentType: false,
                                 mimeType: 'multipart/form-data',
-                                beforeSend: authorizate,
+                                beforeSend: authorize,
                                 data: form,
                                 dataType: 'json',
                             }).done(response => {
@@ -252,7 +252,7 @@
             // load caches
             $.ajax({
                 url: backend_url + '/projects',
-                beforeSend: authorizate
+                beforeSend: authorize
             }).done(function(projects) {
                 ajaxCache.projects = projects;
             });
@@ -317,7 +317,7 @@
                     }
                     $.ajax({
                         url: backend_url + '/projects',
-                        beforeSend: authorizate
+                        beforeSend: authorize
                     }).done(function(projects) {
                         if (!('projects' in ajaxCache)) {
                             projects.forEach(p => {
@@ -410,7 +410,7 @@
                         processData: false,
                         contentType: false,
                         mimeType: 'multipart/form-data',
-                        beforeSend: authorizate,
+                        beforeSend: authorize,
                         data: form,
                         dataType: 'json',
                     }).done(response => {
@@ -438,7 +438,7 @@
                 $.ajax({
                     method: 'DELETE',
                     url: backend_url + '/maps/' + map_id + '/markers/' + marker_id,
-                    beforeSend: authorizate
+                    beforeSend: authorize
                 }).done(function() {
                     polygon.setMap(null);
                     polygon.marker.setMap(null);
