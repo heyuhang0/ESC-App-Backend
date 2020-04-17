@@ -52,6 +52,7 @@
         }
         .project-selection-button-delete {background-color: #f44336;}
         .project-selection-button-save {background-color: #4CAF50;}
+        .select2-results__option { font-size: 14px; }
     </style>
     <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.4.1.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
@@ -308,7 +309,6 @@
                         placeholder: 'Please choose a project',
                         allowClear: true
                     });
-
                     function updateOptions(projects) {
                         var optgroupUnallocated = $('<optgroup>');
                         optgroupUnallocated.attr('label', 'Unallocated');
@@ -317,7 +317,8 @@
                         optgroupAllocated.attr('label', 'Allocated');
 
                         projects.forEach(p => {
-                            var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
+                            var name = p.name + ' (' + p.space_x + '×' + p.space_y + '×' + p.space_z + 'm)';
+                            var option = new Option(name, p.id, false, p.id == polygon.meta.project_id);
                             if (p.allocated) {
                                 optgroupAllocated.append(option);
                             } else {
