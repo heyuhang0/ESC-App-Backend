@@ -14,8 +14,10 @@ api = Api(project_bp)
 
 project_fields = {
     'id': fields.Integer,
+    'key': fields.Integer(attribute='id'),
     'name': fields.String,
     'type': fields.String,
+    'allocated': fields.Boolean,
     'space_x': fields.Float,
     'space_y': fields.Float,
     'space_z': fields.Float,
@@ -119,7 +121,7 @@ class ProjectListView(Resource):
         result['space_y'] = space_numbers[1] if len(space_numbers) > 1 else 2.0
         result['space_z'] = space_numbers[2] if len(space_numbers) > 2 else 2.0
 
-        # parse other optinal parameters
+        # parse other optional parameters
         if len(line) > 4:
             prototype_nums = [float(s) for s in re.findall(r"\d+\.?\d*", line[4])]
             use_cm = 'cm' in line[4]
@@ -169,6 +171,7 @@ class ProjectListView(Resource):
             new_projects = []
             with open(filepath, 'r') as csv_file:
                 reader = csv.reader(csv_file)
+                next(reader)  # skip headers
                 for line in reader:
                     data_dict = self.parse_csv_line(line)
                     data_dict['creator'] = auth.current_user
@@ -220,6 +223,30 @@ class ProjectListView(Resource):
         db.session.commit()
 
         return project
+
+    @auth.admin_required
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('ids', type=int, action='append', location='json', required=True)
+        args = parser.parse_args()
+
+        to_be_deleted = []
+        for project_id in args['ids']:
+            project = Project.query.filter(Project.id == project_id).first()
+            if not project:
+                raise NotFoundException(f'Project {project_id} not found')
+            to_be_deleted.append(project)
+
+        for project in to_be_deleted:
+            db.session.delete(project)
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+        return jsonify({'message': 'Project {} deleted'.format(str(args['ids']))})
 
 
 class ProjectView(Resource):
