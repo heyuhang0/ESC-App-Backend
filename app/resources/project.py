@@ -171,6 +171,7 @@ class ProjectListView(Resource):
             new_projects = []
             with open(filepath, 'r') as csv_file:
                 reader = csv.reader(csv_file)
+                next(reader)  # skip headers
                 for line in reader:
                     data_dict = self.parse_csv_line(line)
                     data_dict['creator'] = auth.current_user

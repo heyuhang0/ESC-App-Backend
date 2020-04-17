@@ -4,6 +4,7 @@ from app.models import db, User, Map
 
 
 TESTING_CSV = b"""\
+Project Name (*),Type of Prototype 1 (*),Type of Prototype 2 (*),Showcase Space Needed ( L x W x H ) in meters (*),Prototype Size (L x W x H) in meters and Weight,No.of Power Points,Big Pedestal,Small Pedestal,Pedestal Description,Monitor/Screen,TV,Table,Chair,HDMI to VGA Adapter,HDMI Cable,Other Requests,Remarks
 Project 1,  1:01,   Light Installation, 5m x 4m,    20cm*10cm*30cm*80kg,    1, 2, 3, descrption1, 4, 5, 6, 7, 8, 9, 10, Remark1
 Project 2,      ,   Prototype,          5 x 4 x 3m, 2 x 3                   1, 2, 3, descrption2, 4, 5, 6, 7, 8, 9, 10, Remark2
 Project 3,  Prototype, Software,        500 x 400cm,1 X 2 x 1m,             1, 2, 3, descrption3, 4, 5, 6, 7, 8, 9, 10, Remark3
