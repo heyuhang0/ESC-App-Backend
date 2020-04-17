@@ -223,6 +223,30 @@ class ProjectListView(Resource):
 
         return project
 
+    @auth.admin_required
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('ids', type=int, action='append', location='json', required=True)
+        args = parser.parse_args()
+
+        to_be_deleted = []
+        for project_id in args['ids']:
+            project = Project.query.filter(Project.id == project_id).first()
+            if not project:
+                raise NotFoundException(f'Project {project_id} not found')
+            to_be_deleted.append(project)
+
+        for project in to_be_deleted:
+            db.session.delete(project)
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+        return jsonify({'message': 'Project {} deleted'.format(str(args['ids']))})
+
 
 class ProjectView(Resource):
     @auth.login_required
