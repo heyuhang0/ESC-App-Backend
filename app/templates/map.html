@@ -210,7 +210,7 @@
                         var button_copy = button.cloneNode(true);
                         button.parentNode.replaceChild(button_copy, button);
                         
-                        // craete a new marker when click
+                        // create a new marker when click
                         button_copy.addEventListener('click', function buttonCallback(){
                             var map_id = map.getMapTypeId();
                             var form = new FormData();
@@ -291,7 +291,7 @@
                 // show info window
                 polygon.infoWindow.setContent(
                     '<label for="id_project_selection">' +
-                    '    <p class="project-selection-title">Assigned Project</p>' +
+                    '    <p class="project-selection-title">Allocated Project</p>' +
                     '    <select class="project-selection" id="id_project_selection" style="width: 20em">' +
                     '        <option></option>' +
                     '    </select>' +
@@ -308,23 +308,37 @@
                         placeholder: 'Please choose a project',
                         allowClear: true
                     });
-                    if ('projects' in ajaxCache) {
-                        ajaxCache.projects.forEach(p => {
+
+                    function updateOptions(projects) {
+                        var optgroupUnallocated = $('<optgroup>');
+                        optgroupUnallocated.attr('label', 'Unallocated');
+
+                        var optgroupAllocated = $('<optgroup>');
+                        optgroupAllocated.attr('label', 'Allocated');
+
+                        projects.forEach(p => {
                             var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
-                            $('.project-selection').append(option);
+                            if (p.allocated) {
+                                optgroupAllocated.append(option);
+                            } else {
+                                optgroupUnallocated.append(option);
+                            }
                         });
+                        $('.project-selection').append(optgroupUnallocated);
+                        $('.project-selection').append(optgroupAllocated);
                         $('.project-selection').trigger('change');
+                    };
+
+                    if ('projects' in ajaxCache) {
+                        updateOptions(ajaxCache.projects);
                     }
+
                     $.ajax({
                         url: backend_url + '/projects',
                         beforeSend: authorize
                     }).done(function(projects) {
                         if (!('projects' in ajaxCache)) {
-                            projects.forEach(p => {
-                                var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
-                                $('.project-selection').append(option);
-                            });
-                            $('.project-selection').trigger('change');
+                            updateOptions(projects);
                         }
                         ajaxCache.projects = projects;
                     });
@@ -350,7 +364,7 @@
                 polygon.infoWindow.setPosition(highest_position);
             }
 
-            function updateMarkerPositon() {
+            function updateMarkerPosition() {
                 var coords = polygon.getPath().getArray().map(latlng2xy);
                 var cx = 0.0;
                 var cy = 0.0;
@@ -372,7 +386,7 @@
 
             function updatePositions() {
                 updateInfoWindowPosition();
-                updateMarkerPositon();
+                updateMarkerPosition();
             }
 
             polygon.addListener('drag', updatePositions);
@@ -415,6 +429,12 @@
                         dataType: 'json',
                     }).done(response => {
                         polygon.pull(response);
+                        $.ajax({
+                            url: backend_url + '/projects',
+                            beforeSend: authorize
+                        }).done(function(projects) {
+                            ajaxCache.projects = projects;
+                        });
                     });
                 }
             };
