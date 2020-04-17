@@ -171,7 +171,7 @@ class TestProject(TestBase):
         assert len(rv.json) == 1
         assert rv.json[0]['name'] == 'Project 2'
 
-    def test_filter_by_mutiple(self):
+    def test_filter_by_multiple(self):
         rv = self.client.get(
             '/projects',
             data={
@@ -192,7 +192,7 @@ class TestProject(TestBase):
         )
         assert rv.status_code == 200
         assert 'skipped' in rv.json
-        self.TEST_DATA['skipped'] = rv.json['skipped']
+        self.TEST_DATA['skipped_count'] = rv.json['skipped_count']
 
     def test_markers_after_allocation(self):
         rv = self.client.get(
@@ -214,7 +214,7 @@ class TestProject(TestBase):
             )
             assert rv.status_code == 200
             marker_count += len(rv.json)
-        assert marker_count == self.TEST_DATA['project_count'] - self.TEST_DATA['skipped']
+        assert marker_count == self.TEST_DATA['project_count'] - self.TEST_DATA['skipped_count']
 
     def test_send_notifications(self):
         rv = self.client.post(
