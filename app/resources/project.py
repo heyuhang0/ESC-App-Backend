@@ -14,8 +14,10 @@ api = Api(project_bp)
 
 project_fields = {
     'id': fields.Integer,
+    'key': fields.Integer(attribute='id'),
     'name': fields.String,
     'type': fields.String,
+    'allocated': fields.Boolean,
     'space_x': fields.Float,
     'space_y': fields.Float,
     'space_z': fields.Float,
@@ -119,7 +121,7 @@ class ProjectListView(Resource):
         result['space_y'] = space_numbers[1] if len(space_numbers) > 1 else 2.0
         result['space_z'] = space_numbers[2] if len(space_numbers) > 2 else 2.0
 
-        # parse other optinal parameters
+        # parse other optional parameters
         if len(line) > 4:
             prototype_nums = [float(s) for s in re.findall(r"\d+\.?\d*", line[4])]
             use_cm = 'cm' in line[4]
