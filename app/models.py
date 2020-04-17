@@ -80,6 +80,10 @@ class Project(db.Model):
     remark = Column(Text, default='')
     marker = relationship('Marker', uselist=False, back_populates='project')
 
+    @property
+    def allocated(self):
+        return self.marker is not None
+
 
 class Marker(db.Model):
     __tablename__ = 'marker'

@@ -55,6 +55,7 @@ class TestProject(TestBase):
         assert rv.status_code == 200
         assert 'id' in rv.json
         self.TEST_DATA['id'] = rv.json['id']
+        assert rv.json['key'] == self.TEST_DATA['id']
         assert rv.json['name'] == 'NHB_Spatial Autonomy'
         assert rv.json['type'] == '1:01 light installation'
         assert rv.json['space_x'] == 20
@@ -88,11 +89,13 @@ class TestProject(TestBase):
         )
         assert rv.status_code == 200
         assert rv.json['id'] == self.TEST_DATA['id']
+        assert rv.json['key'] == self.TEST_DATA['id']
         assert rv.json['name'] == 'Project 1 NHB_Spatial Autonomy'
         assert rv.json['type'] == '1:01 light installation'
         assert rv.json['space_x'] == 20
         assert rv.json['space_y'] == 10
         assert rv.json['space_z'] == 2.5
+        assert not rv.json['allocated']
 
     def test_delete(self):
         rv = self.client.delete(
