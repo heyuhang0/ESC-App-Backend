@@ -52,6 +52,7 @@
         }
         .project-selection-button-delete {background-color: #f44336;}
         .project-selection-button-save {background-color: #4CAF50;}
+        .select2-results__option { font-size: 14px; }
     </style>
     <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.4.1.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
@@ -67,7 +68,7 @@
 
         var ajaxCache = {};
 
-        function authorizate(request) {
+        function authorize(request) {
             request.setRequestHeader('Authorization', 'Bearer {{ token }}');
         }
 
@@ -122,7 +123,7 @@
             var maps = $.ajax({
                 url: backend_url + '/maps',
                 async: false,
-                beforeSend: authorizate,
+                beforeSend: authorize,
             }).responseJSON;
 
             var mapTypes = [];
@@ -165,6 +166,38 @@
 
             // listener to load markers on map change
             var polygons = []
+
+            function updateMarkerLabel(polygon, zoom) {
+                var contours = polygon.getPath().getArray().map(latlng2xy);
+                var min_x = contours[0].x;
+                var max_x = contours[0].x;
+                contours.forEach(p => {
+                    if (p.x < min_x) min_x = p.x;
+                    if (p.x > max_x) max_x = p.x;
+                });
+                var width = (max_x - min_x) / (1 << (base_zoom - zoom));
+
+                polygon.marker.setVisible(width > 50);
+
+                var textLen = polygon.meta.project_name.length;
+                var preferredFontSize = Math.min((width / textLen) * 1.8, 14);
+                var minFontSize = 10;
+
+                if (preferredFontSize >= minFontSize) {
+                    polygon.marker.setLabel({
+                        text: polygon.meta.project_name,
+                        fontSize: preferredFontSize + 'px',
+                    });
+                } else {
+                    var maxLen = Math.floor(width * 1.8 / minFontSize);
+                    var textTrimmed = polygon.meta.project_name.substring(0, maxLen) + '..';
+                    polygon.marker.setLabel({
+                        text: textTrimmed,
+                        fontSize: minFontSize + 'px',
+                    });
+                }
+            }
+
             map.addListener('maptypeid_changed', function() {
                 if (activatePolygon != null) {
                     activatePolygon.save();
@@ -172,16 +205,16 @@
                 var map_id = map.getMapTypeId();
                 $.ajax({
                     url: backend_url + '/maps/' + map_id + '/markers',
-                    beforeSend: authorizate
+                    beforeSend: authorize
                 }).done(markers => {
                     while(polygons.length > 0) {
                         var polygon = polygons.pop();
                         polygon.setMap(null);
                         polygon.marker.setMap(null);
                     }
-                    markers.forEach(marker => {
+                    markers.forEach(function(marker) {
                         var polygon = createPolygon(map, marker);
-                        polygon.marker.setVisible(default_zoom > 13);
+                        updateMarkerLabel(polygon, map.getZoom());
                         polygon.setMap(map);
                         polygons.push(polygon);
                     });
@@ -191,7 +224,7 @@
             // show/hide markers on zoom
             map.addListener('zoom_changed', function() {
                 var zoom = map.getZoom();
-                polygons.forEach(p => p.marker.setVisible(zoom > 13));
+                polygons.forEach(p => updateMarkerLabel(p, zoom));
             });
 
             // save changes when click empty area
@@ -210,7 +243,7 @@
                         var button_copy = button.cloneNode(true);
                         button.parentNode.replaceChild(button_copy, button);
                         
-                        // craete a new marker when click
+                        // create a new marker when click
                         button_copy.addEventListener('click', function buttonCallback(){
                             var map_id = map.getMapTypeId();
                             var form = new FormData();
@@ -231,7 +264,7 @@
                                 processData: false,
                                 contentType: false,
                                 mimeType: 'multipart/form-data',
-                                beforeSend: authorizate,
+                                beforeSend: authorize,
                                 data: form,
                                 dataType: 'json',
                             }).done(response => {
@@ -252,7 +285,7 @@
             // load caches
             $.ajax({
                 url: backend_url + '/projects',
-                beforeSend: authorizate
+                beforeSend: authorize
             }).done(function(projects) {
                 ajaxCache.projects = projects;
             });
@@ -291,7 +324,7 @@
                 // show info window
                 polygon.infoWindow.setContent(
                     '<label for="id_project_selection">' +
-                    '    <p class="project-selection-title">Assigned Project</p>' +
+                    '    <p class="project-selection-title">Allocated Project</p>' +
                     '    <select class="project-selection" id="id_project_selection" style="width: 20em">' +
                     '        <option></option>' +
                     '    </select>' +
@@ -308,23 +341,37 @@
                         placeholder: 'Please choose a project',
                         allowClear: true
                     });
-                    if ('projects' in ajaxCache) {
-                        ajaxCache.projects.forEach(p => {
-                            var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
-                            $('.project-selection').append(option);
+                    function updateOptions(projects) {
+                        var optgroupUnallocated = $('<optgroup>');
+                        optgroupUnallocated.attr('label', 'Unallocated');
+
+                        var optgroupAllocated = $('<optgroup>');
+                        optgroupAllocated.attr('label', 'Allocated');
+
+                        projects.forEach(p => {
+                            var name = p.name + ' (' + p.space_x + '×' + p.space_y + '×' + p.space_z + 'm)';
+                            var option = new Option(name, p.id, false, p.id == polygon.meta.project_id);
+                            if (p.allocated) {
+                                optgroupAllocated.append(option);
+                            } else {
+                                optgroupUnallocated.append(option);
+                            }
                         });
+                        $('.project-selection').append(optgroupUnallocated);
+                        $('.project-selection').append(optgroupAllocated);
                         $('.project-selection').trigger('change');
+                    };
+
+                    if ('projects' in ajaxCache) {
+                        updateOptions(ajaxCache.projects);
                     }
+
                     $.ajax({
                         url: backend_url + '/projects',
-                        beforeSend: authorizate
+                        beforeSend: authorize
                     }).done(function(projects) {
                         if (!('projects' in ajaxCache)) {
-                            projects.forEach(p => {
-                                var option = new Option(p.name, p.id, false, p.id == polygon.meta.project_id);
-                                $('.project-selection').append(option);
-                            });
-                            $('.project-selection').trigger('change');
+                            updateOptions(projects);
                         }
                         ajaxCache.projects = projects;
                     });
@@ -350,7 +397,7 @@
                 polygon.infoWindow.setPosition(highest_position);
             }
 
-            function updateMarkerPositon() {
+            function updateMarkerPosition() {
                 var coords = polygon.getPath().getArray().map(latlng2xy);
                 var cx = 0.0;
                 var cy = 0.0;
@@ -372,7 +419,7 @@
 
             function updatePositions() {
                 updateInfoWindowPosition();
-                updateMarkerPositon();
+                updateMarkerPosition();
             }
 
             polygon.addListener('drag', updatePositions);
@@ -382,7 +429,6 @@
             polygon.pull = function(response) {
                 polygon.setPath(response.polygon.map(xy2latlng));
                 polygon.marker.setPosition(xy2latlng(response.centre));
-                polygon.marker.setLabel(response.project.name);
                 var polygonColor = response.project.id ? '#446BFF': '#3EE31C';
                 polygon.setOptions({
                     fillColor: polygonColor,
@@ -410,11 +456,17 @@
                         processData: false,
                         contentType: false,
                         mimeType: 'multipart/form-data',
-                        beforeSend: authorizate,
+                        beforeSend: authorize,
                         data: form,
                         dataType: 'json',
                     }).done(response => {
                         polygon.pull(response);
+                        $.ajax({
+                            url: backend_url + '/projects',
+                            beforeSend: authorize
+                        }).done(function(projects) {
+                            ajaxCache.projects = projects;
+                        });
                     });
                 }
             };
@@ -438,7 +490,7 @@
                 $.ajax({
                     method: 'DELETE',
                     url: backend_url + '/maps/' + map_id + '/markers/' + marker_id,
-                    beforeSend: authorizate
+                    beforeSend: authorize
                 }).done(function() {
                     polygon.setMap(null);
                     polygon.marker.setMap(null);
