@@ -54,7 +54,7 @@ class MarkerListView(Resource):
     def post(self, map_id):
         parser = reqparse.RequestParser()
         parser.add_argument('polygon_json', dest='polygon', type=polygon, required=True)
-        parser.add_argument('map_id', type=int, required=True)
+        parser.add_argument('map_id', type=int, default=map_id)
         parser.add_argument('project_id', type=int)
         args = parser.parse_args()
 

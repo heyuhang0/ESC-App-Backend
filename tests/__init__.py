@@ -16,6 +16,7 @@ class TestBase:
         self._app_context = self.app.app_context()
         self._app_context.push()
         db.create_all()
+        db.session.execute('pragma foreign_keys=ON')
 
     def teardown_class(self):
         db.session.remove()

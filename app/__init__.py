@@ -1,6 +1,8 @@
+import logging
 from flask import Flask
 from flask_migrate import Migrate
 from flask_cors import CORS
+from sqlalchemy.exc import SQLAlchemyError
 from app.models import db
 from app.common.exceptions import InvalidUsage
 
@@ -19,6 +21,15 @@ def create_app(config):
     @app.errorhandler(InvalidUsage)
     def handle_invalid_usage(e: InvalidUsage):
         return e.make_response()
+
+    @app.errorhandler(SQLAlchemyError)
+    def handle_database_error(e: SQLAlchemyError):
+        logging.exception(e)
+        try:
+            db.session.rollback()
+        except Exception as e:
+            logging.exception(e)
+        return InvalidUsage('Database error').make_response()
 
     # Load blueprints
     from app.resources.user import user_bp
