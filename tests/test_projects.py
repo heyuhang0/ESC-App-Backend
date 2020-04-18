@@ -136,7 +136,6 @@ class TestProject(TestBase):
         rv = self.client.get('/projects', headers={'Authorization': 'Bearer ' + self.admin.token})
         assert rv.status_code == 200
         assert len(rv.json) == 5
-        self.TEST_DATA['project_count'] = len(rv.json)
         for i in range(5):
             assert rv.json[i]['name'] == 'Project {}'.format(i + 1)
             assert rv.json[i]['space_x'] == 5
@@ -192,6 +191,28 @@ class TestProject(TestBase):
             headers={'Authorization': 'Bearer ' + self.admin.token}
         )
         assert rv.status_code == 200
+
+    def test_allocation_with_more_projects(self):
+        rv = self.client.post(
+            '/projects',
+            data={'file': (
+                io.BytesIO(open('tests/project_requirements.csv', 'rb').read()),
+                'test.csv'
+            )},
+            headers={'Authorization': 'Bearer ' + self.admin.token},
+            content_type='multipart/form-data'
+        )
+        assert rv.status_code == 200
+
+        rv = self.client.get('/projects', headers={'Authorization': 'Bearer ' + self.admin.token})
+        assert rv.status_code == 200
+        self.TEST_DATA['project_count'] = len(rv.json)
+
+        rv = self.client.post(
+            '/admin/run_allocation',
+            headers={'Authorization': 'Bearer ' + self.admin.token}
+        )
+        assert rv.status_code == 200
         assert 'skipped' in rv.json
         self.TEST_DATA['skipped_count'] = rv.json['skipped_count']
 
@@ -223,3 +244,20 @@ class TestProject(TestBase):
             headers={'Authorization': 'Bearer ' + self.admin.token}
         )
         assert rv.status_code == 200
+
+    def test_bunch_delete(self):
+        rv = self.client.get('/projects', headers={'Authorization': 'Bearer ' + self.admin.token})
+        assert rv.status_code == 200
+        project_ids = [p['id'] for p in rv.json]
+        to_be_deleted = list(filter(lambda i: i % 2, project_ids))
+        rv = self.client.delete(
+            '/projects',
+            headers={'Authorization': 'Bearer ' + self.admin.token},
+            json={'ids': to_be_deleted}
+        )
+        assert rv.status_code == 200
+        rv = self.client.get('/projects', headers={'Authorization': 'Bearer ' + self.admin.token})
+        assert rv.status_code == 200
+        for project in rv.json:
+            assert project['id'] in project_ids
+            assert project['id'] not in to_be_deleted
