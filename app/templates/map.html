@@ -166,6 +166,38 @@
 
             // listener to load markers on map change
             var polygons = []
+
+            function updateMarkerLabel(polygon, zoom) {
+                var contours = polygon.getPath().getArray().map(latlng2xy);
+                var min_x = contours[0].x;
+                var max_x = contours[0].x;
+                contours.forEach(p => {
+                    if (p.x < min_x) min_x = p.x;
+                    if (p.x > max_x) max_x = p.x;
+                });
+                var width = (max_x - min_x) / (1 << (base_zoom - zoom));
+
+                polygon.marker.setVisible(width > 50);
+
+                var textLen = polygon.meta.project_name.length;
+                var preferredFontSize = Math.min((width / textLen) * 1.8, 14);
+                var minFontSize = 10;
+
+                if (preferredFontSize >= minFontSize) {
+                    polygon.marker.setLabel({
+                        text: polygon.meta.project_name,
+                        fontSize: preferredFontSize + 'px',
+                    });
+                } else {
+                    var maxLen = Math.floor(width * 1.8 / minFontSize);
+                    var textTrimmed = polygon.meta.project_name.substring(0, maxLen) + '..';
+                    polygon.marker.setLabel({
+                        text: textTrimmed,
+                        fontSize: minFontSize + 'px',
+                    });
+                }
+            }
+
             map.addListener('maptypeid_changed', function() {
                 if (activatePolygon != null) {
                     activatePolygon.save();
@@ -180,9 +212,9 @@
                         polygon.setMap(null);
                         polygon.marker.setMap(null);
                     }
-                    markers.forEach(marker => {
+                    markers.forEach(function(marker) {
                         var polygon = createPolygon(map, marker);
-                        polygon.marker.setVisible(default_zoom > 13);
+                        updateMarkerLabel(polygon, map.getZoom());
                         polygon.setMap(map);
                         polygons.push(polygon);
                     });
@@ -192,7 +224,7 @@
             // show/hide markers on zoom
             map.addListener('zoom_changed', function() {
                 var zoom = map.getZoom();
-                polygons.forEach(p => p.marker.setVisible(zoom > 13));
+                polygons.forEach(p => updateMarkerLabel(p, zoom));
             });
 
             // save changes when click empty area
@@ -397,7 +429,6 @@
             polygon.pull = function(response) {
                 polygon.setPath(response.polygon.map(xy2latlng));
                 polygon.marker.setPosition(xy2latlng(response.centre));
-                polygon.marker.setLabel(response.project.name);
                 var polygonColor = response.project.id ? '#446BFF': '#3EE31C';
                 polygon.setOptions({
                     fillColor: polygonColor,
