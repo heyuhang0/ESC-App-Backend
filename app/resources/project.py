@@ -179,11 +179,7 @@ class ProjectListView(Resource):
                     new_projects.append(new_project)
                     db.session.add(new_project)
 
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                raise e
+            db.session.commit()
 
             return new_projects
 
@@ -240,11 +236,7 @@ class ProjectListView(Resource):
         for project in to_be_deleted:
             db.session.delete(project)
 
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            raise e
+        db.session.commit()
 
         return jsonify({'message': 'Project {} deleted'.format(str(args['ids']))})
 
