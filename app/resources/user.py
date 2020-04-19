@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask_restful import Api, fields, marshal_with, Resource, reqparse
 from app.common.auth import auth
 from app.common.exceptions import InvalidUsage
+from app.common.validator import email
 from app.models import db, User
 
 user_bp = Blueprint('user', __name__)
@@ -27,7 +28,7 @@ class UserListView(Resource):
     @marshal_with(user_fields)
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('email', type=str, required=True)
+        parser.add_argument('email', type=email, required=True)
         parser.add_argument('password', type=str, required=True)
         parser.add_argument('full_name', type=str, required=True)
         args = parser.parse_args()
@@ -56,7 +57,7 @@ class UserView(Resource):
     @marshal_with(user_fields)
     def put(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('email', type=str)
+        parser.add_argument('email', type=email)
         parser.add_argument('password', type=str)
         parser.add_argument('full_name', type=str)
         args = parser.parse_args()
