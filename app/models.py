@@ -7,7 +7,7 @@ from sqlalchemy import Integer, Float, String, Text, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
 from flask import current_app
-from passlib.apps import custom_app_context
+from passlib.context import CryptContext
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 db = SQLAlchemy()
@@ -23,16 +23,25 @@ class User(db.Model):
 
     projects = relationship('Project', back_populates='creator')
 
+    _static_pwd_context = None
+
+    @property
+    def _pwd_context(self):
+        if User._static_pwd_context is None:
+            config = current_app.config['PASSLIB_CONTEXT_CONFIG']
+            User._static_pwd_context = CryptContext.from_string(config)
+        return User._static_pwd_context
+
     @property
     def password(self):
         raise AttributeError('`password` is not a readable attribute')
 
     @password.setter
     def password(self, password):
-        self.password_hash = custom_app_context.hash(password)
+        self.password_hash = self._pwd_context.hash(password)
 
     def verify_password(self, password):
-        return custom_app_context.verify(password, self.password_hash)
+        return self._pwd_context.verify(password, self.password_hash)
 
     @property
     def token(self, expiration=3600):
