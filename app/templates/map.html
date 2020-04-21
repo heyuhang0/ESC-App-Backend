@@ -179,23 +179,26 @@
 
                 polygon.marker.setVisible(width > 50);
 
-                var textLen = polygon.meta.project_name.length;
-                var preferredFontSize = Math.min((width / textLen) * 1.8, 14);
-                var minFontSize = 10;
+                polygon.marker.updateAdaptiveLabel = function(text) {
+                    var textLen = text.length;
+                    var preferredFontSize = Math.min((width / textLen) * 1.8, 14);
+                    var minFontSize = 10;
 
-                if (preferredFontSize >= minFontSize) {
-                    polygon.marker.setLabel({
-                        text: polygon.meta.project_name,
-                        fontSize: preferredFontSize + 'px',
-                    });
-                } else {
-                    var maxLen = Math.floor(width * 1.8 / minFontSize);
-                    var textTrimmed = polygon.meta.project_name.substring(0, maxLen) + '..';
-                    polygon.marker.setLabel({
-                        text: textTrimmed,
-                        fontSize: minFontSize + 'px',
-                    });
-                }
+                    if (preferredFontSize >= minFontSize) {
+                        polygon.marker.setLabel({
+                            text: text,
+                            fontSize: preferredFontSize + 'px',
+                        });
+                    } else {
+                        var maxLen = Math.floor(width * 1.8 / minFontSize);
+                        var textTrimmed = text.substring(0, maxLen) + '..';
+                        polygon.marker.setLabel({
+                            text: textTrimmed,
+                            fontSize: minFontSize + 'px',
+                        });
+                    }
+                };
+                polygon.marker.updateAdaptiveLabel(polygon.meta.project_name);
             }
 
             map.addListener('maptypeid_changed', function() {
@@ -440,6 +443,9 @@
                 polygon.meta.map_id = map_id;
                 polygon.meta.project_id = response.project.id;
                 polygon.meta.project_name = response.project.name;
+                if ('updateAdaptiveLabel' in polygon.marker) {
+                    polygon.marker.updateAdaptiveLabel(response.project.name);
+                }
             }
 
             polygon.post = function() {
