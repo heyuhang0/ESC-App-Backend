@@ -180,6 +180,10 @@
                 polygon.marker.setVisible(width > 50);
 
                 polygon.marker.updateAdaptiveLabel = function(text) {
+                    if (text == null) {
+                        polygon.marker.setLabel("");
+                        return;
+                    }
                     var textLen = text.length;
                     var preferredFontSize = Math.min((width / textLen) * 1.8, 14);
                     var minFontSize = 10;
