@@ -2,6 +2,7 @@ import os
 import csv
 import re
 import string
+import logging
 from flask import Blueprint, jsonify, request, current_app
 from flask_restful import Api, fields, marshal_with, Resource, reqparse
 from app.common.auth import auth, ForbiddenException
@@ -107,9 +108,8 @@ class ProjectListView(Resource):
     def parse_csv_line(self, line):
         if len(line) < 4:
             raise InvalidUsage(
-                'At least 4 columns (name, type, type description, space requirement)\
-                 are required for CSV file'
-            )
+                'At least 4 columns (name, type, type description, space requirement)'
+                + 'are required for CSV file')
         result = {}
         result['name'] = ascii_str(line[0], 127)
         result['type'] = ascii_str(line[1] + ' ' + line[2], 127)
@@ -170,14 +170,26 @@ class ProjectListView(Resource):
 
             new_projects = []
             with open(filepath, 'r') as csv_file:
-                reader = csv.reader(csv_file)
-                next(reader)  # skip headers
-                for line in reader:
-                    data_dict = self.parse_csv_line(line)
-                    data_dict['creator'] = auth.current_user
-                    new_project = Project(**data_dict)
-                    new_projects.append(new_project)
-                    db.session.add(new_project)
+                try:
+                    reader = csv.reader(csv_file)
+                    # skip headers
+                    try:
+                        next(reader)
+                    except StopIteration:
+                        raise InvalidUsage('One header line is expected')
+                    # go through every data line
+                    for line in reader:
+                        data_dict = self.parse_csv_line(line)
+                        data_dict['creator'] = auth.current_user
+                        new_project = Project(**data_dict)
+                        new_projects.append(new_project)
+                        db.session.add(new_project)
+                except csv.Error as e:
+                    logging.info(e)
+                    raise InvalidUsage('Invalid CSV foramt')
+                except UnicodeDecodeError as e:
+                    logging.info(e)
+                    raise InvalidUsage('Invalid character in CSV file')
 
             db.session.commit()
 
