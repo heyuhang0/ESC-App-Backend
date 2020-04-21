@@ -66,6 +66,8 @@ class MultiMutator(MutationOperator):
         self.mutators = mutators
 
     def mutate(self, line):
+        if len(line) < 1:
+            return line
         mutated = line
         while mutated == line:
             mutated = random.choice(self.mutators).mutate(line)
